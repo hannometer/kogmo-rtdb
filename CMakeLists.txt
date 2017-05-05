@@ -36,6 +36,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/rtdb/
     ${CMAKE_CURRENT_SOURCE_DIR}/objects/
 )
+
 add_definitions(
     -DRTMALLOC_suba
     -DKOGMO_RTDB_INCLUDE_A2_OBJECTS
@@ -58,6 +59,9 @@ endif()
 # Install headers
 FILE( GLOB API_HEADERS "include/*" )
 install( FILES ${API_HEADERS} DESTINATION "include/kogmo_rtdb/" )
+install( TARGETS kogmo_rtdb
+         ARCHIVE DESTINATION lib
+         LIBRARY DESTINATION lib )
 
 
 if(COMMAND cmake_policy)
@@ -104,4 +108,9 @@ add_dependencies( rtdb
     kogmo_rtdb_play
     kogmo_rtdb_reader
     kogmo_rtdb_writer
+)
+
+# Other files - so they are visible to IDEs such as qtcreator
+add_custom_target(kogmo_resources_misc SOURCES
+    ${API_HEADERS}
 )
