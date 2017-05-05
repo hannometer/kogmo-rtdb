@@ -26,7 +26,7 @@ main (int argc, char **argv)
   int err, i;
 
   // Verbindung zur Datenbank aufbauen, unsere Zykluszeit is 33 ms
-  err = kogmo_rtdb_connect_initinfo (&dbinfo, "", "demo_object_writer", 0.033); DIEonERR(err);
+  err = kogmo_rtdb_connect_initinfo (&dbinfo, "", "demo_object_writer", 0.033f); DIEonERR(err);
   oid = kogmo_rtdb_connect (&dbc, &dbinfo); DIEonERR(oid);
 
   // Demo-Object erstellen
@@ -50,6 +50,9 @@ main (int argc, char **argv)
       demoobj.ints.intval[0] = i;
 
       // Daten schreiben
+      kogmo_timestamp_string_t timestring;
+      kogmo_timestamp_to_string(demoobj.base.data_ts, timestring);
+      printf("%s: i[0]=%i, ...\n", timestring, demoobj.ints.intval[0]);
       err = kogmo_rtdb_obj_writedata (dbc, demoobj_info.oid, &demoobj); DIEonERR(err);
 
       sleep (1);

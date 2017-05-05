@@ -27,7 +27,7 @@ try {
   while (1)
     {
       DemoObj.RTDBReadWaitNext();
-      cout << DemoObj;
+      //cout << DemoObj;
       cout << "Data: " << DemoObj.getInt(0) << " ..." << endl;
     }
 }

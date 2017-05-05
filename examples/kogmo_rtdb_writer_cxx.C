@@ -41,6 +41,7 @@ try {
       DemoObj.setInt(0,i); // Beispieldaten, die sich aendern...
 
       // Daten schreiben
+      cout << "Writing data: " << DemoObj.getInt( 0 ) << endl;
       DemoObj.RTDBWrite();
 
       // Zyklus fertig, als Lebenszeichen
