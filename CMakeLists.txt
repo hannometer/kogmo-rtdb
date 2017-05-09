@@ -8,6 +8,13 @@ if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Build type not set, setting it to ${CMAKE_BUILD_TYPE}.")
 endif()
 
+# Options
+option( KOGMO_RTDB_DO_POLLING "Use polling" OFF )
+
+if(KOGMO_RTDB_DO_POLLING)
+    add_definitions(-DKOGMO_RTDB_IPC_DO_POLLING)
+endif(KOGMO_RTDB_DO_POLLING)
+
 # Source files
 file( GLOB RTDB_FUNCS ./objects/kogmo_rtdb_obj_*_funcs.c )
 file( GLOB RTDB_RECORD ./record/kogmo_rtdb_avirawcodec.c ./record/kogmo_rtdb_timeidx.c )
