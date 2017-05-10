@@ -170,11 +170,15 @@ long int lost_messages=0;
 kogmo_rtdb_handle_t *dbc=NULL;
 unsigned long int events_total_written = 0, events_total = 0;
 
+
+const uint64_t obj_data_size = 16 * 1024 * 1024; // THIS WILL BE THE MAXIMUM RECORDABLE OBJECT SIZE!!
+
+int mainRecord (int argc, char **argv);
+
 int
 main (int argc, char **argv)
 {
   // set maximumum object size, and adjust stack size if necessary
-  const uint64_t obj_data_size = 16 * 1024 * 1024; // THIS WILL BE THE MAXIMUM RECORDABLE OBJECT SIZE!!
   const rlim_t kStackSize = obj_data_size + 1024 * 1024;
   struct rlimit rl;
   int result = getrlimit(RLIMIT_STACK, &rl);
@@ -185,9 +189,18 @@ main (int argc, char **argv)
       rl.rlim_cur = kStackSize;
       result = setrlimit(RLIMIT_STACK, &rl);
       if (result != 0)
-        sprintf(stderr, "setrlimit failed, returnvalue = %d\n", result);
+        fprintf(stderr, "setrlimit failed, returnvalue = %d\n", result);
     }
   }
+
+  // Must be in extra function because the stack size  might not be increased
+  // before all large stack vars are initialized, thus leading to segfaults upon
+  // entering main().
+  return mainRecord( argc, argv );
+}
+
+int mainRecord (int argc, char **argv)
+{
   kogmo_rtdb_connect_info_t dbinfo;
   kogmo_rtdb_objid_t oid, recorderoid;
   //kogmo_rtdb_obj_info_t ctrlobj_info;
@@ -200,6 +213,7 @@ main (int argc, char **argv)
   unsigned long int last_bandwidth_events_written=0;
   kogmo_timestamp_string_t timestring;
   kogmo_rtdb_obj_info_t obj_info;
+
   struct
   {
     kogmo_rtdb_subobj_base_t base;
@@ -237,14 +251,8 @@ main (int argc, char **argv)
   int size;
   void *data;
   uint32_t datatype;
-  struct kogmo_rtdb_stream_chunk_t rtdbchunk;
 
   kogmo_rtdb_require_revision(KOGMO_RTDB_REV);
-
-  rtdbchunk.fcc[0] = 'R';
-  rtdbchunk.fcc[1] = 'T';
-  rtdbchunk.fcc[2] = 'D';
-  rtdbchunk.fcc[3] = 'B';
 
   for(i=0;i<MAXOPTLIST;i++)
     {

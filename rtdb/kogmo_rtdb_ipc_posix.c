@@ -60,7 +60,7 @@ static void ntfy_signal_handler(int signal)
 }
 
 
-inline long int
+long int
 roundup_pagesize (long long int sz, int extra_pages)
 {
   long long int size =
@@ -371,7 +371,6 @@ kogmo_rtdb_ipc_connect (struct kogmo_rtdb_ipc_handle_t *ipc_h,
       ipc_h->shm_p->data_size = *data_size;
       ipc_h->shm_p->manager_pid = getpid();
       ipc_h->shm_p->manager_alive_ts = 0; // manager at initialization
-      kogmo_rtdb_ipc_mutex_init (&ipc_h->shm_p->global_lock);
       // proc[]=[0..0] initialized by memset(..,0,..)
       kogmo_rtdb_ipc_mutex_init (&ipc_h->shm_p->proc_lock);
       ipc_h->shm_p->proc_free=KOGMO_RTDB_PROC_MAX;
@@ -473,7 +472,6 @@ kogmo_rtdb_ipc_disconnect (struct kogmo_rtdb_ipc_handle_t *ipc_h,
   //  for(i=0;i<KOGMO_RTDB_OBJ_LOCAL_SEM_SIZE;i++)
   //    kogmo_rtdb_mutex_destroy(&ipc_h->shm_p->objdata_lock[i]);
   kogmo_rtdb_ipc_mutex_destroy (&ipc_h->shm_p->proc_lock);
-  kogmo_rtdb_ipc_mutex_destroy (&ipc_h->shm_p->global_lock);
  } else {
   if(ipc_h->this_process.proc_oid)
     {

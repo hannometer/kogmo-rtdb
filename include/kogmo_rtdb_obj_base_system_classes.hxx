@@ -13,7 +13,6 @@
 #include <sstream> // std::ostringstream
 #include <cmath>   // double std::abs(double)
 #include <stdio.h> // snprintf
-using namespace std;
 
 namespace KogniMobil {
 
@@ -76,7 +75,47 @@ class C3_PlayerCtrl : public C3_PlayerCtrl_T
              << "GoTo Time:  " << Timestamp(subobj_p->goto_ts).string() << std::endl
              << "By-Frame Go:" << subobj_p->frame_go << " " << subobj_p->frame_objname << std::endl;
         return RTDBObj::dump() + ostr.str();
-      };
+      }
+    std::string csv_header( void ) const
+      {
+        std::ostringstream ostr;
+        ostr << "playerctrl_datatimestamp,";
+        ostr << "playerctrl_committedtimestamp,";
+        ostr << "playerctrl_pause,";
+        ostr << "playerctrl_scanning,";
+        ostr << "playerctrl_logging,";
+        ostr << "playerctrl_loop,";
+        ostr << "playerctrl_keep_created,";
+        ostr << "playerctrl_speed,";
+        ostr << "playerctrl_committer_oid,";
+        ostr << "playerctrl_committer_name";
+        ostr << std::endl;
+        return ostr.str();
+      }
+    std::string csv_output( void ) const
+      {
+        std::ostringstream ostr;
+        // ostr << std::setprecision(10);
+        ostr << objbase_p->data_ts << ",";
+        ostr << objbase_p->committed_ts << ",";
+        ostr << subobj_p->flags.pause << ",";
+        ostr << subobj_p->flags.scan << ",";
+        ostr << subobj_p->flags.log << ",";
+        ostr << subobj_p->flags.loop << ",";
+        ostr << subobj_p->flags.keepcreated << ",";
+        ostr << subobj_p->speed << ",";
+
+        kogmo_rtdb_obj_c3_process_info_t process_info;
+        kogmo_rtdb_obj_c3_process_getprocessinfo(
+                    db_h,
+                    objbase_p->committed_proc,
+                    objbase_p->committed_ts,
+                    process_info
+        );
+        ostr << objbase_p->committed_proc << ",";
+        ostr << process_info << std::endl;
+        return ostr.str();
+      }
 };
 
 typedef RTDBObj_T < kogmo_rtdb_subobj_c3_playerctrl_t, KOGMO_RTDB_OBJTYPE_C3_PLAYERCTRL, RTDBObj > C3_PlayerCtrl_T;
@@ -188,7 +227,7 @@ class C3_RecorderStat : public C3_RecorderStat_T
             ostr << text;
           }
         return RTDBObj::dump() + ostr.str();
-      };
+      }
 };
 
 class C3_RecorderStatConvenient : public C3_RecorderStat
@@ -197,7 +236,7 @@ class C3_RecorderStatConvenient : public C3_RecorderStat
   uint64_t last_bytes_written;
   uint32_t last_events_written;
   uint32_t last_events_total;
-  uint32_t last_events_lost; 
+  uint32_t last_events_lost;
   public:
     C3_RecorderStatConvenient(class RTDBConn& DBC, const char* name = "recorderstat") : C3_RecorderStat (DBC, name)
       {
@@ -308,7 +347,7 @@ class C3_RTDB : public RTDBObj
         : RTDBObj (DBC, name, otype, sizeof(kogmo_rtdb_subobj_c3_rtdb_t) +
                    child_size, (char**)&objrtdb_p)
       {
-        // Pass a Pointer pointing right after the base data to our child 
+        // Pass a Pointer pointing right after the base data to our child
         if ( child_size && child_dataptr != NULL )
           *child_dataptr = (char*)objrtdb_p + sizeof (kogmo_rtdb_subobj_c3_rtdb_t);
       };
@@ -473,7 +512,7 @@ class C3_Process : public RTDBObj
               {
                 RTDBReadWaitSuccessor();
               }
-            catch(DBError err)  
+            catch(DBError err)
               { // History wrap-around abfangen (Fehlermeldung?)
                 RTDBRead();
               }
@@ -551,14 +590,14 @@ class C3_Text : public C3_Text_T
           text.append ( subobj_p->data, getLength() );
         return text;
       };
-        
+
     std::string dump(void) const
     {
         std::ostringstream ostr;
         ostr << "* Text:" << std::endl
              << getText() << std::endl;
         return RTDBObj::dump() + ostr.str();
-      }; 
+      };
 };
 
 
@@ -568,7 +607,7 @@ class C3_Ints : public C3_Ints_T
 {
   public:
     C3_Ints(class RTDBConn& DBC, const char* name = "") : C3_Ints_T (DBC, name)
-      { 
+      {
       }
 
     int getLength (void) const
@@ -644,7 +683,7 @@ template < int width = 1024, int height = 768, int channels = 1, int bits=8 > cl
         if ( !use_read_ptr )
           return &this->subobj_p->data[0];
         else
-         {  
+         {
           if (!committed_ts)
             committed_ts = this->getCommittedTimestamp();
           if ( read_ptr_ts != committed_ts )
@@ -672,7 +711,7 @@ template < int width = 1024, int height = 768, int channels = 1, int bits=8 > cl
         } catch(DBError err) {
           return false;
         }
-      }  
+      }
     void setPointerRead(bool yes = true)
       {
         use_read_ptr = yes;
@@ -721,7 +760,7 @@ template < int width = 1024, int height = 768, int channels = 1, int bits=8 > cl
                 << "Color Modell: " << ( this->subobj_p->colormodell < (signed)(sizeof(colormodels)/sizeof(char*)) && this->subobj_p->colormodell >= 0 ? colormodels[this->subobj_p->colormodell] : "?" ) << " (" << this->subobj_p->colormodell << ")" << std::endl
                 << "Depth: " << this->subobj_p->depth << " Bits/Pixel" <<std::endl;
         return RTDBObj::dump() + ostr.str();
-      }; 
+      };
 };
 
 //old, but generic: typedef RTDBObj_T < kogmo_rtdb_subobj_a2_image_t, KOGMO_RTDB_OBJTYPE_A2_IMAGE, RTDBObj,  640*480 > A2_Image_Gray640x480;
@@ -736,9 +775,9 @@ typedef A2_Image <  640,  480, 3 > A2_Image_RGB640x480;
 typedef A2_Image < 1024,  768, 3 > A2_Image_RGB1024x768;
 
 typedef A2_Image <  640,  480, 1, 16 > A2_Image_Gray640x480x16;
-typedef A2_Image <  640,  480, 3, 16 > A2_Image_RGB640x480x16; 
+typedef A2_Image <  640,  480, 3, 16 > A2_Image_RGB640x480x16;
 typedef A2_Image <  640,  480, 1, 32 > A2_Image_Gray640x480x32;
-typedef A2_Image <  640,  480, 3, 32 > A2_Image_RGB640x480x32; 
+typedef A2_Image <  640,  480, 3, 32 > A2_Image_RGB640x480x32;
 
 
 typedef A2_Image_RGB1024x768 A2_BiggestImage; // groesstes zu erwartendes bild (bei bedarf vergroessern)

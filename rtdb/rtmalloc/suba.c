@@ -291,9 +291,9 @@ suba_print_cell(struct allocator *suba, const char *msg, struct cell *c)
 {
     ref_t ref = suba_ref(suba, c);
     if (ref >= ALIGN(sizeof *suba) && (ref + POFF + c->size) <= 10000000) {
-        fprintf(stderr, "%s: %8u-%-8lu %8u %-8u\n", msg, ref, ref + POFF + c->size, c->size, c->next);
+        fprintf(stderr, "%s: %8zu-%-8lu %8zu %-8zu\n", msg, ref, ref + POFF + c->size, c->size, c->next);
     } else {
-        fprintf(stderr, "%s: %8u-err %8u %-8u\n", msg, ref, c->size, c->next);
+        fprintf(stderr, "%s: %8zu-err %8zu %-8zu\n", msg, ref, c->size, c->next);
         return 0;
     }
     return 1;

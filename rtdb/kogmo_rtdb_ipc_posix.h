@@ -75,7 +75,6 @@ struct kogmo_rtdb_ipc_shm_t {
  // manager internals
  pid_t manager_pid;
  kogmo_timestamp_t manager_alive_ts; // 0: manager at initialization
- pthread_mutex_t global_lock;
 
  // process administration
  struct kogmo_rtdb_ipc_process_t proc[KOGMO_RTDB_PROC_MAX];

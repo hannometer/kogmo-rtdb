@@ -119,7 +119,7 @@ class RTDBObj
 	      	delete reference_counter;
 			    delete objsize_p; 
 			    delete objsize_min_p;
-	        delete objbase_p;
+	        delete[] objbase_p;
 	        delete objinfo_p;
 	    	}
       };
