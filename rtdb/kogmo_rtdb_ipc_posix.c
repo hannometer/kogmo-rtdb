@@ -860,6 +860,7 @@ int kogmo_rtdb_ipc_mq_init(mqd_t *mqfd, char *name, int do_init, int size, int l
      attr.mq_msgsize = size;
      attr.mq_flags = 0;
      err = mq_unlink (name); // may fail
+     if ( err == -1 ) DBG("mq_unlink failed");
      *mqfd = mq_open(name, O_WRONLY|O_CREAT|O_EXCL|O_NONBLOCK, 0666, &attr);
      if ( *mqfd == -1 ) return -1; //xDIE("mq_open and init failed");
    }
