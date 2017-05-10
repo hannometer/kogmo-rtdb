@@ -770,7 +770,7 @@ main (int argc, char **argv)
                       {
                         if (do_log)
                           printf("#ERROR: unique objecttype 0x%X already exists, cannot create (and update) a second object '%s'!\n",info_p->otype,info_p->name);
-                          map_add (oid,0,info_p->name,info_p->otype);
+                        map_add (oid,0,info_p->name,info_p->otype);
                         break;
                       }
                     WARNonERR(destoid);
