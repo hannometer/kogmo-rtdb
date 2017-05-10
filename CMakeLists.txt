@@ -65,12 +65,6 @@ else()
     target_link_libraries( kogmo_rtdb rt m)
 endif()
 
-# Install headers
-FILE( GLOB API_HEADERS "include/*" )
-install( FILES ${API_HEADERS} DESTINATION "include/kogmo_rtdb/" )
-install( TARGETS kogmo_rtdb
-         ARCHIVE DESTINATION lib
-         LIBRARY DESTINATION lib )
 
 
 if(COMMAND cmake_policy)
@@ -106,9 +100,7 @@ target_link_libraries( kogmo_rtdb_reader kogmo_rtdb )
 add_executable( kogmo_rtdb_writer examples/kogmo_rtdb_writer.c )
 target_link_libraries( kogmo_rtdb_writer kogmo_rtdb )
 
-# All of RTDB
-add_custom_target( rtdb )
-add_dependencies( rtdb
+set(rtdb_targets
     kogmo_rtdb
     kogmo_rtdb_man
     kogmo_rtdb_dump
@@ -118,6 +110,18 @@ add_dependencies( rtdb
     kogmo_rtdb_reader
     kogmo_rtdb_writer
 )
+
+# All of RTDB
+add_custom_target( rtdb )
+add_dependencies( rtdb ${rtdb_targets} )
+
+# Install headers, libs and binaries
+FILE( GLOB API_HEADERS "include/*" )
+install( FILES ${API_HEADERS} DESTINATION "include/kogmo_rtdb/" )
+install( TARGETS ${rtdb_targets}
+         ARCHIVE DESTINATION lib
+         LIBRARY DESTINATION lib
+         RUNTIME DESTINATION bin )
 
 # Other files - so they are visible to IDEs such as qtcreator
 add_custom_target(kogmo_resources_misc SOURCES
