@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1)
 
 project( kogmo_rtdb )
 
@@ -43,6 +43,8 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/rtdb/
     ${CMAKE_CURRENT_SOURCE_DIR}/objects/
 )
+
+set(CMAKE_C_STANDARD 11)
 
 add_definitions(
     -DRTMALLOC_suba

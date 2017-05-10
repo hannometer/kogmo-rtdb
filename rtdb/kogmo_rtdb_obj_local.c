@@ -24,10 +24,11 @@ static void
 exit_handler(int code, void *db_h)
 {
  DBGL(DBGL_API,"kogmo_rtdb_exit_handler: exiting..");
- DBG("kogmo_rtdb exit-handler: exiting..");
- // evtl. pthread_kill_other_threads_np(); usleep(300000);
- kogmo_rtdb_disconnect (db_h, (void*)1);
- exit(code);
+
+ uint32_t flags = 0;
+ flags |= KOGMO_RTDB_DISCONNECT_FLAGS_WAIT;
+
+ kogmo_rtdb_disconnect (db_h, &flags);
 }
 
 
@@ -64,6 +65,7 @@ kogmo_rtdb_obj_local_init (kogmo_rtdb_handle_t *db_h,
       kogmo_rtdb_ipc_mutex_init(&db_h->localdata_p->obj_lock[i]);
       kogmo_rtdb_ipc_mutex_init(&db_h->localdata_p->obj_changenotify_lock[i]);
       kogmo_rtdb_ipc_condvar_init(&db_h->localdata_p->obj_changenotify[i]);
+      db_h->localdata_p->obj_changenotify_newdata_ts[i] = 0;
     }
   kogmo_rtdb_ipc_mutex_init(&db_h->localdata_p->heap_lock);
   kogmo_rtdb_obj_mem_init (db_h);
@@ -376,11 +378,11 @@ kogmo_rtdb_connect (kogmo_rtdb_handle_t **db_hp,
 int
 kogmo_rtdb_disconnect (kogmo_rtdb_handle_t *db_h, void *discinfo)
 {
+  DBGL(DBGL_API,"kogmo_rtdb_disconnect()");
   int err;
   uint32_t flags = 0;
-  DBGL(DBGL_API,"kogmo_rtdb_disconnect()");
-  //if ( discinfo != NULL ); // unused
-  //  flags = (uint32_t*)discinfo; // useless, should be in a struct later
+  if ( discinfo != NULL )
+    flags = *(uint32_t*)discinfo; // useless, should be in a struct later
 
   if (db_h == NULL || db_h->localdata_p == NULL)
       return -KOGMO_RTDB_ERR_NOCONN;

@@ -758,7 +758,7 @@ kogmo_rtdb_connect (kogmo_rtdb_handle_t **db_h,
 /* \brief Disconnect from Real-time Vehicle Database
  *
  * \param db_h      database handle
- * \param discinfo  normally NULL (might contain special flags later)
+ * \param discinfo  NULL or a uint32 with set KOGMO_RTDB_DISCONNECT_FLAGS_*
  * \returns         <0 on errors
  *
  * You should call this on process termination.

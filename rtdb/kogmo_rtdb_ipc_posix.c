@@ -32,14 +32,27 @@ kogmo_rtdb_require_revision (uint32_t req_rev)
   }
 }
 
+#define handle_error_en(en, msg) \
+        do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
 
-static void
-term_signal_handler (int signal)
+static void *
+sig_thread(void *arg)
 {
-  DBG ("kogmo_rtdb signal-handler: received signal %i", signal);
-  exit (0);
-}
+  sigset_t *set = arg;
+  int s, sig;
 
+  while(1)
+    {
+      s = sigwait(set, &sig);
+      if (s != 0)
+          handle_error_en(s, "sigwait");
+      MSG("Signal handling thread got signal %d\n", sig);
+
+      // rtdb disconnect executed in exit handler
+
+      exit(0);
+    }
+}
 
 static void ntfy_signal_handler(int signal)
 {
@@ -63,7 +76,7 @@ kogmo_rtdb_ipc_connect (struct kogmo_rtdb_ipc_handle_t *ipc_h,
                         char *dbhost,
                         char *procname, float cycletime, uint32_t flags,
                         char **data_p, long int *data_size,
-                        void (*exit_handler) (int,void *), void *exit_arg)
+                        void (*exit_handler) (int,void *), void *exit_arg_db_h)
 {
   int err;
   int i;
@@ -75,6 +88,8 @@ kogmo_rtdb_ipc_connect (struct kogmo_rtdb_ipc_handle_t *ipc_h,
       strncat(ipc_h->shmid,".",KOGMO_RTDB_PROC_NAME_MAXLEN);
       strncat(ipc_h->shmid,dbhost,KOGMO_RTDB_PROC_NAME_MAXLEN);
     }
+
+  ipc_h->terminate=0;
 
   ipc_h->shmfd=-1;
   ipc_h->shm_p=NULL;
@@ -132,20 +147,28 @@ kogmo_rtdb_ipc_connect (struct kogmo_rtdb_ipc_handle_t *ipc_h,
     {
       int ok=1;
 #ifndef MACOSX
-      if( on_exit(exit_handler,exit_arg) != 0 ) ok=0;
+      if( on_exit(exit_handler,exit_arg_db_h) != 0 ) ok=0;
 #endif
-      if( signal(SIGHUP, term_signal_handler) == SIG_ERR ) ok=0;
-      if( signal(SIGINT, term_signal_handler) == SIG_ERR ) ok=0;
-      if( signal(SIGQUIT, term_signal_handler) == SIG_ERR ) ok=0;
-      if( signal(SIGTERM, term_signal_handler) == SIG_ERR ) ok=0;
+      // Handle all signals in own thread
+      sigset_t signal_set;
+      sigemptyset(&signal_set);
+      sigaddset(&signal_set, SIGHUP);
+      sigaddset(&signal_set, SIGINT);
+      sigaddset(&signal_set, SIGQUIT);
+      sigaddset(&signal_set, SIGTERM);
+      sigaddset(&signal_set, SIGILL);
+      sigaddset(&signal_set, SIGBUS);
+      sigaddset(&signal_set, SIGFPE);
+      sigaddset(&signal_set, SIGSEGV);
+      sigaddset(&signal_set, SIGPIPE);
+      sigaddset(&signal_set, SIGCHLD);
+      ipc_h->sigthread_sigset = signal_set;
 
-      if( signal(SIGILL, term_signal_handler) == SIG_ERR ) ok=0;
-      if( signal(SIGBUS, term_signal_handler) == SIG_ERR ) ok=0;
-      if( signal(SIGFPE, term_signal_handler) == SIG_ERR ) ok=0;
-      if( signal(SIGSEGV, term_signal_handler) == SIG_ERR ) ok=0;
-
-      if( signal(SIGPIPE, term_signal_handler) == SIG_ERR ) ok=0;
-      if( signal(SIGCHLD, term_signal_handler) == SIG_ERR ) ok=0;
+      int err;
+      err = pthread_sigmask(SIG_BLOCK, &ipc_h->sigthread_sigset, NULL);
+      if ( err != 0 ) handle_error_en(err, "pthread_sigmask");
+      err = pthread_create(&ipc_h->sigthread, NULL, &sig_thread, (void*)&ipc_h->sigthread_sigset);
+      if ( err != 0 ) handle_error_en(err, "pthread_create");
 
       if( signal(SIGUSR1, ntfy_signal_handler) == SIG_ERR ) ok=0;
 
@@ -422,15 +445,22 @@ int
 kogmo_rtdb_ipc_disconnect (struct kogmo_rtdb_ipc_handle_t *ipc_h,
                            uint32_t flags)
 {
+ DBGL(DBGL_API,"kogmo_rtdb_ipc_disconnect()");
  int err;
  int is_manager=ipc_h->this_process.flags&KOGMO_RTDB_CONNECT_FLAGS_MANAGER?1:0;
 // int is_spectator=this_process.flags&KOGMO_RTDB_CONNECT_FLAGS_SPECTATOR?1:0;
  int be_silent=ipc_h->this_process.flags&KOGMO_RTDB_CONNECT_FLAGS_SILENT;
 
-
  if(!ipc_h->shm_p) {
   DBG("cannot disconnect: not connected");
   return(0);
+ }
+
+ ipc_h->terminate = 1;
+ if ( flags & KOGMO_RTDB_DISCONNECT_FLAGS_WAIT ) {
+   DBG("kogmo_rtdb_ipc_disconnect: waiting 500ms to allow condvar waiters in other threads to finish..");
+   usleep(500000);
+   DBG("kogmo_rtdb_ipc_disconnect: waiting finished, exiting now.");
  }
 
  if( !be_silent )
@@ -524,6 +554,10 @@ kogmo_rtdb_ipc_mutex_init(pthread_mutex_t *mutex)
     ERR("setting mutex attribute PROCESS_SHARED failed: %s",strerror(err));
 #endif
 
+  err=pthread_mutexattr_setrobust(&mattr, PTHREAD_MUTEX_ROBUST);
+  if( err != 0 )
+    ERR("setting mutex attribute PTHREAD_MUTEX_ROBUST failed: %s",strerror(err));
+
   err=pthread_mutex_init(mutex,&mattr);
   if( err != 0 )
     DIE("initializing mutex failed: %s",strerror(err));
@@ -562,6 +596,13 @@ kogmo_rtdb_ipc_mutex_lock(pthread_mutex_t *mutex)
   if (err == EDEADLK )
     {
       DBG("mutex lock: deadlock avoided (happens on process cleanup).");
+      return 0;
+    }
+  else if (err == EOWNERDEAD )
+    {
+      DBG("mutex lock: owner is dead, switching to new owner.");
+      // mark the shared state as consistent
+      pthread_mutex_consistent(mutex);
       return 0;
     }
 
@@ -625,22 +666,59 @@ kogmo_rtdb_ipc_condvar_destroy(pthread_cond_t *condvar)
   return err;
 }
 
-
+inline void
+timestamp_to_timespec( kogmo_timestamp_t ts, struct timespec *ats )
+{
+  ats->tv_nsec = ( ts * KOGMO_TIMESTAMP_NANOSECONDSPERTICK ) % 1000000000;
+  ats->tv_sec  =   ts / KOGMO_TIMESTAMP_TICKSPERSECOND;
+}
 
 int
-kogmo_rtdb_ipc_condvar_wait(pthread_cond_t *condvar, pthread_mutex_t *mutex, kogmo_timestamp_t wakeup_ts)
+kogmo_rtdb_ipc_condvar_wait(pthread_cond_t *condvar, pthread_mutex_t *mutex,
+                            atomic_int_fast64_t* new_data_ts,
+                            uint8_t *terminate,
+                            kogmo_timestamp_t wakeup_ts )
 {
-  int err;
-  struct timespec ats;
-  ats.tv_nsec = ( wakeup_ts * KOGMO_TIMESTAMP_NANOSECONDSPERTICK ) % 1000000000;
-  ats.tv_sec  =   wakeup_ts / KOGMO_TIMESTAMP_TICKSPERSECOND;
+  int err = 0;
+  struct timespec wakeup_ats;
+  timestamp_to_timespec(wakeup_ts, &wakeup_ats);
+
+  kogmo_timestamp_t condvar_wakeup_ts;
+  struct timespec condvar_wakeup_ats;
+
+  atomic_int_fast64_t old_ts = *new_data_ts;
 
   DBGL(DBGL_IPC,"before pthread_cond_(timed)wait(,%lli)", (long long int)wakeup_ts);
-  if (wakeup_ts)
-    err=pthread_cond_timedwait(condvar, mutex, &ats);
-  else
-    err=pthread_cond_wait(condvar,mutex);
+  // as long as ts doesn't change, only spurious wakeups occured
+  while ( old_ts == *new_data_ts && !(*terminate) )
+    {
+      condvar_wakeup_ts = kogmo_timestamp_add_ns(kogmo_timestamp_now(), 100000000);
+      timestamp_to_timespec(condvar_wakeup_ts, &condvar_wakeup_ats);
+      //clock_gettime(CLOCK_REALTIME, &condvar_wakeup_ats);
+      //condvar_wakeup_ats.tv_nsec += 100000000; // 100ms
+
+      if (condvar_wakeup_ats.tv_sec > wakeup_ats.tv_sec ||
+          condvar_wakeup_ats.tv_nsec > wakeup_ats.tv_nsec )
+      {
+          err=pthread_cond_timedwait(condvar, mutex, &condvar_wakeup_ats);
+          DBGL(DBGL_IPC,"after pthread_cond_timedwait() - with condvar_wakeup_ats %s(%d)",strerror(err),err);
+      }
+      else
+      {
+          err=pthread_cond_timedwait(condvar, mutex, &wakeup_ats);
+          DBGL(DBGL_IPC,"after pthread_cond_timedwait() - with wakeup_ats (%d)",err);
+          if( err == ETIMEDOUT )
+              break;
+      }
+    }
   DBGL(DBGL_IPC,"after pthread_cond_timedwait()");
+
+  if ( *terminate )
+    {
+      err = EINTR;
+      DBG( "process is terminating: %s(%i)",strerror(err),err);
+      return err;
+    }
 
   if( err != 0 && err != ETIMEDOUT )
     DIE("waiting on condition variable failed: %s(%i)",strerror(err),err);
@@ -652,11 +730,12 @@ kogmo_rtdb_ipc_condvar_wait(pthread_cond_t *condvar, pthread_mutex_t *mutex, kog
 }
 
 int
-kogmo_rtdb_ipc_condvar_signalall(pthread_cond_t *condvar)
+kogmo_rtdb_ipc_condvar_signalall(pthread_cond_t *condvar, atomic_int_fast64_t *new_data_ts)
 {
   int err;
 
   DBGL(DBGL_IPC,"before pthread_cond_broadcast()");
+  *new_data_ts = kogmo_timestamp_now();
   err=pthread_cond_broadcast(condvar);
   DBGL(DBGL_IPC,"after pthread_cond_broadcast()");
 

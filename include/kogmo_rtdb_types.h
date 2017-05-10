@@ -356,6 +356,9 @@ typedef struct
 #define KOGMO_RTDB_CONNECT_FLAGS_REALTIME   0x0100
  //!< (internal, ask matthias.goebl*goebl.net before use)
 
+#define KOGMO_RTDB_DISCONNECT_FLAGS_WAIT 0x0001
+ //!< Wait before disconnecting from rtdb so other threads may exit cleanly
+
 /*@}*/
 
 

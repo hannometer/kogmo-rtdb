@@ -15,6 +15,8 @@
 #ifndef KOGMO_RTDB_OBJ_LOCAL_H
 #define KOGMO_RTDB_OBJ_LOCAL_H
 
+#include <stdatomic.h>
+
 #ifdef __cplusplus
 extern "C" {
 namespace KogniMobil {
@@ -31,12 +33,14 @@ struct kogmo_rtdb_obj_local_t {
 
  kogmo_rtdb_obj_info_t objmeta[KOGMO_RTDB_OBJ_MAX];
  uint32_t objmeta_free;
- pthread_mutex_t objmeta_lock;
- pthread_cond_t  objmeta_changenotify;
+ pthread_mutex_t     objmeta_lock;
+ pthread_cond_t      objmeta_changenotify;
+ atomic_int_fast64_t objmeta_changenotify_newdata_ts;
 
  pthread_mutex_t obj_lock[KOGMO_RTDB_OBJ_MAX];
  pthread_cond_t  obj_changenotify[KOGMO_RTDB_OBJ_MAX];
  pthread_mutex_t obj_changenotify_lock[KOGMO_RTDB_OBJ_MAX];
+ atomic_int_fast64_t obj_changenotify_newdata_ts[KOGMO_RTDB_OBJ_MAX];
 
  int32_t rtdb_trace;
  int32_t rtdb_tracebufsize;

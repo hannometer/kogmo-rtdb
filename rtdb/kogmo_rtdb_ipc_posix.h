@@ -17,6 +17,7 @@
 
 #include <pthread.h> /* pthread_t */
 #include <unistd.h>
+#include <stdatomic.h>
 
 
 #ifdef MACOSX
@@ -98,6 +99,9 @@ struct kogmo_rtdb_ipc_handle_t {
  int this_process_slot; // so far only for notify-fix
  mqd_t tracefd;
  mqd_t rxtracefd;
+ pthread_t sigthread;
+ sigset_t  sigthread_sigset;
+ uint8_t   terminate; // Flag set when terminating
 };
 
 
@@ -115,7 +119,7 @@ kogmo_rtdb_ipc_connect (struct kogmo_rtdb_ipc_handle_t *ipc_h,
                         char *dbhost,
                         char *procname, float cycletime, uint32_t flags,
                         char **data_p, long int *data_size,
-                        void (*exit_handler) (int,void *), void *exit_arg);
+                        void (*exit_handler) (int,void *), void *db_h);
 int
 kogmo_rtdb_ipc_connect_enable (struct kogmo_rtdb_ipc_handle_t *ipc_h);
 
@@ -132,8 +136,11 @@ int kogmo_rtdb_ipc_mutex_unlock(pthread_mutex_t *mutex);
 
 int kogmo_rtdb_ipc_condvar_init(pthread_cond_t *condvar);
 int kogmo_rtdb_ipc_condvar_destroy(pthread_cond_t *condvar);
-int kogmo_rtdb_ipc_condvar_wait(pthread_cond_t *condvar, pthread_mutex_t *mutex, kogmo_timestamp_t wakeup_ts);
-int kogmo_rtdb_ipc_condvar_signalall(pthread_cond_t *condvar);
+int kogmo_rtdb_ipc_condvar_wait(pthread_cond_t *condvar, pthread_mutex_t *mutex,
+                                atomic_int_fast64_t *new_data_ts,
+                                uint8_t *terminate,
+                                kogmo_timestamp_t wakeup_ts);
+int kogmo_rtdb_ipc_condvar_signalall(pthread_cond_t *condvar, atomic_int_fast64_t *new_data_ts);
 
 int kogmo_rtdb_ipc_mq_init(mqd_t *mqfd, char *name, int do_init, int size, int len);
 int kogmo_rtdb_ipc_mq_destroy(mqd_t mqfd, char *name, int do_destroy);
