@@ -318,7 +318,7 @@ main (int argc, char **argv)
 
   // Exklusiven modus überprüfen
   kogmo_rtdb_objid_list_t idlist;
-  int num_matching_objects = kogmo_rtdb_obj_searchinfo (dbc, "c3_recorder", 0, 0, 0, 0, &idlist, 0);
+  int num_matching_objects = kogmo_rtdb_obj_searchinfo (dbc, "c3_recorder", 0, 0, 0, 0, idlist, 0);
   int matching_object_idx;
   for ( matching_object_idx = 0; matching_object_idx < num_matching_objects; ++matching_object_idx )
   {
@@ -332,7 +332,7 @@ main (int argc, char **argv)
           }
           else
           {
-              printf("!!!\n!!! Another rtdb_record (OID %d) is already running - expect a bad recording!\n!!!\n");
+              printf("!!!\n!!! Another rtdb_record (OID %d) is already running - expect a bad recording!\n!!!\n",manoid);
           }
       }
   }
